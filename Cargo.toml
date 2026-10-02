@@ -1,0 +1,33 @@
+[package]
+name = "mitos-boot"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "MITOS early boot & visual startup system"
+license = "MIT"
+
+[[bin]]
+name = "mitos-boot"
+path = "src/main.rs"
+
+[dependencies]
+libc        = "0.2"
+log         = "0.4"
+thiserror   = "1"
+serde       = { version = "1", features = ["derive"] }
+toml        = "0.8"
+rusttype    = "0.9"     # wordmark / text (pure Rust)
+png         = "0.17"    # static fallback image (pure Rust)
+# WebM/VP9 decoding. Optional to keep minimal early-userspace builds small.
+# Match the crate major version to your system FFmpeg (4.x,5.x,6.x,7.x).
+ffmpeg-next = { version = "7.1", optional = true }
+
+[features]
+default = ["video-ffmpeg"]
+video-ffmpeg = ["ffmpeg-next"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
