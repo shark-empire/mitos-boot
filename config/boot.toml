@@ -1,0 +1,93 @@
+# mitos-boot configuration. Every key is optional; missing values fall back
+# to the compiled-in defaults (see src/config.rs). Unknown keys are REJECTED.
+
+[boot]
+enabled = true
+
+[splash]
+enabled = true
+owl_video = true
+owl_video_path = "/usr/share/mitos/boot/owl.webm"
+owl_static_fallback = "/usr/share/mitos/boot/owl.png"
+owl_scale = 0.6            # fraction of the shorter screen edge
+owl_center_y = 0.44        # 0.0 = top, 1.0 = bottom
+wordmark = true
+wordmark_text = "MĨȚǑŠ"
+wordmark_font = "/usr/share/mitos/fonts/MitosDisplay-Regular.ttf"
+font_fallbacks = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+]
+wordmark_size_px = 96      # reference size at 1080p, scaled to the panel
+wordmark_center_y = 0.46
+wordmark_glow = true
+glow_color = [122, 168, 255]
+show_progress = false
+
+[background]
+style = "solid"            # "solid" | "gradient"
+color = [0, 0, 0]
+gradient_top = [10, 12, 20]
+gradient_bottom = [0, 0, 0]
+
+[animation]
+fade_in_ms = 400
+fade_out_ms = 500
+wordmark_in_ms = 500
+wordmark_out_ms = 500
+wordmark_hold_ms = 600
+minimum_duration_ms = 1800 # visual floor; readiness still gates completion
+fast_when_ready = true     # wordmark exits immediately once the system is ready
+
+[renderer]
+backend = "auto"           # "auto" | "drm" | "fbdev" | "disabled"
+
+[display]
+# card = "/dev/dri/card0"  # default: scan card0..card15
+# fb_device = "/dev/fb0"   # default for the fbdev backend
+max_width = 3840
+max_height = 2160
+
+[video]
+max_asset_bytes = 536870912   # 512 MiB
+max_decode_per_update_ms = 40
+default_fps = 30
+
+[system]
+init_path = "/usr/lib/mitos/mitos-init"
+require_mounts = ["/proc", "/sys", "/dev", "/run"]
+require_devices = []
+require_files = []
+init_ready_marker = "/run/mitos/system-ready"
+readiness_timeout_ms = 30000  # 0 = wait indefinitely (watchdog still applies)
+
+[ipc]
+enabled = true
+socket = "/run/mitos/boot.sock"
+
+[handoff]
+mode = "notify"           # "notify" = exit and let init proceed
+                          # "exec"   = execve mitos-init (required when PID 1)
+
+[debug]
+show_boot_messages = false
+log_level = "info"        # error | warn | info | debug | trace
+
+[reliability]
+watchdog_ms = 120000      # abort with exit code 86 if the boot loop stalls
+
+[recovery]
+timeout_s = 30            # 0 = wait forever for a key
+default_action = "console" # recovery | console | reboot | poweroff
+recovery_path = "/usr/lib/mitos/mitos-recovery"
+console = "/bin/sh"
+
+[security]
+allowed_asset_roots = [
+    "/usr/share/mitos",
+    "/etc/mitos",
+    "/usr/lib/mitos",
+    "/run/mitos",
+    "/usr/share/fonts",
+]
+allow_any_path = false    # development escape hatch; loudly logged
