@@ -1,0 +1,8 @@
+Testing mitos-boot
+
+Unit tests live inline in the modules (cargo test) — the binary crate is notlinkable from integration tests, so each module owns its own tests:
+
+config parsing & clamping      src/config.rscompositing / clipping         src/renderer/compositor.rstext rasterization             src/renderer/text.rsmask blur                      src/renderer/effects.rseasing / fades / timeline      src/animation/*readiness progress             src/bootlog/progress.rsmountinfo unescaping           src/system/mounts.rsMITOSV decode + size caps      src/video/decoder.rsIPC wire round-trip + garbage  src/ipc/init.rs
+Staged bring-up (design doc §33) — do these one at a time
+
+Stage 1 Linux → mitos-boot → black screen --no-splash, DRM or fbdev, verify clean exit.Stage 2 Black → MĨȚǑŠ owl_video = false, no PNG: wordmark-only path (also the fallback).Stage 3 Static owl Drop owl.png next to the config; static-fallback path.Stage 4 Owl video Build with --features video-ffmpeg, provide owl.webm. (Or test decoder plumbing with a generated MITOSV file — no FFmpeg needed; see src/video/format.rs for the 28-byte header spec.)Stage 5 owl → blink → MĨȚǑŠ transitions (timeline unit tests cover ordering).Stage 6 Readiness gating: watch the wordmark hold extend until the marker file appears (touch /run/mitos/system-ready).Stage 7 Handoff: scripts/build-initramfs.sh + scripts/test-qemu.sh.Stage 8 Real hardware.
