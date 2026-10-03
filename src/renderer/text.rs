@@ -116,4 +116,166 @@ const FONT5X7: [[u8; FONT_W]; 96] = [
     [0x00,0x00,0x00,0x00,0x00], // DEL (unused)
 ];
 
-pub fn bitmap_text_size(text: &str, px: u32) -> (
+
+pub fn bitmap_text_size(text: &str, px: u32) -> (i32, i32) {
+    let s = block_scale(px);
+    let n = text.chars().filter(|c| glyph(*c).is_some()).count();
+    let w = if n == 0 { 0 } else { n as i32 * (FONT_W as i32 + 1) * s - s };
+    (w, FONT_H as i32 * s)
+}
+
+fn block_scale(px: u32) -> i32 { (px / FONT_H as u32).clamp(1, 64) as i32 }
+
+fn glyph(c: char) -> Option<&'static [u8; FONT_W]> {
+    let i = c as usize;
+    if (0x20..0x7F).contains(&i) { Some(&FONT5X7[i - 0x20]) } else { None }
+}
+
+/// Draw with the built-in font. Non-ASCII characters are skipped (this path
+/// exists precisely so it works with zero assets — see wordmark.rs for the
+/// full-Unicode path).
+pub fn draw_bitmap(
+    buf: &mut PixelBuffer, text: &str, x: i32, y: i32,
+    px: u32, color: u32, alpha: f32,
+) {
+    let s = block_scale(px);
+    let mut cx = x;
+    for ch in text.chars() {
+        let Some(g) = glyph(ch) else { continue };
+        for (col, bits) in g.iter().enumerate() {
+            for row in 0..FONT_H {
+                if bits & (1 << row) != 0 {
+                    fill_block(buf, cx + col as i32 * s, y + row as i32 * s, s, color, alpha);
+                }
+            }
+        }
+        cx += (FONT_W as i32 + 1) * s;
+    }
+}
+
+fn fill_block(buf: &mut PixelBuffer, x: i32, y: i32, s: i32, color: u32, alpha: f32) {
+    for dy in 0..s {
+        for dx in 0..s {
+            buf.blend(x + dx, y + dy, color, alpha);
+        }
+    }
+}
+
+pub fn draw_bitmap_centered(
+    buf: &mut PixelBuffer, text: &str, cx: f32, cy: f32,
+    px: u32, color: u32, alpha: f32,
+) {
+    let (w, h) = bitmap_text_size(text, px);
+    draw_bitmap(buf, text, cx as i32 - w / 2, cy as i32 - h / 2, px, color, alpha);
+}
+
+/// ASCII-fallback coverage mask (0.0–1.0 per pixel) for the wordmark bake.
+pub fn rasterize_bitmap_coverage(text: &str, px: u32, pad: u32) -> Option<(Vec<f32>, u32, u32)> {
+    let s = block_scale(px);
+    let filtered: String = text.chars().filter(|c| glyph(*c).is_some()).collect();
+    if filtered.is_empty() { return None; }
+    let (tw, th) = bitmap_text_size(&filtered, px);
+    if tw <= 0 || th <= 0 { return None; }
+    let (w, h) = (tw as u32 + pad * 2, th as u32 + pad * 2);
+    if w > 4096 || h > 4096 { return None; }
+
+    let mut mask = vec![0.0f32; (w * h) as usize];
+    let mut cx = pad as i32;
+    for ch in filtered.chars() {
+        let g = glyph(ch).unwrap();
+        for (col, bits) in g.iter().enumerate() {
+            for row in 0..FONT_H {
+                if bits & (1 << row) != 0 {
+                    for dy in 0..s {
+                        for dx in 0..s {
+                            let x = cx + col as i32 * s + dx;
+                            let y = pad as i32 + row as i32 * s + dy;
+                            if x >= 0 && y >= 0 && (x as u32) < w && (y as u32) < h {
+                                mask[y as usize * w as usize + x as usize] = 1.0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        cx += (FONT_W as i32 + 1) * s;
+    }
+    Some((mask, w, h))
+}
+
+/// High-quality coverage mask from a TTF font. This is the path that renders
+/// MĨȚǑŠ correctly (the diacritics are non-ASCII). Returns None when the text
+/// rasterizes to nothing (e.g. blank string or broken metrics).
+pub fn rasterize_ttf_coverage(
+    font: &rusttype::Font<'_>, text: &str, px: u32, pad: u32,
+) -> Option<(Vec<f32>, u32, u32)> {
+    if text.is_empty() { return None; }
+    let scale = rusttype::Scale::uniform(px as f32);
+    let v = font.v_metrics(scale);
+    let glyphs: Vec<_> = font
+        .layout(text, scale, rusttype::point(0.0, v.ascent))
+        .collect();
+
+    // Global bounding box over all glyphs (accents can overhang the ascent).
+    let (mut min_x, mut min_y) = (f32::MAX, f32::MAX);
+    let (mut max_x, mut max_y) = (f32::MIN, f32::MIN);
+    for g in &glyphs {
+        if let Some(bb) = g.bounding_box() {
+            min_x = min_x.min(bb.min.x); min_y = min_y.min(bb.min.y);
+            max_x = max_x.max(bb.max.x); max_y = max_y.max(bb.max.y);
+        }
+    }
+    if min_x == f32::MAX || max_x <= min_x || max_y <= min_y { return None; }
+
+    let w = (max_x - min_x).ceil() as u32 + pad * 2;
+    let h = (max_y - min_y).ceil() as u32 + pad * 2;
+    if w == 0 || h == 0 || w > 4096 || h > 4096 { return None; }
+
+    let mut mask = vec![0.0f32; (w * h) as usize];
+    for g in glyphs {
+        let Some(bb) = g.bounding_box() else { continue };
+        let ox = pad as f32 + (bb.min.x - min_x);
+        let oy = pad as f32 + (bb.min.y - min_y);
+        g.draw(|x, y, v| {
+            let (fx, fy) = (ox + x as f32, oy + y as f32);
+            if fx >= 0.0 && fy >= 0.0 && fx < w as f32 && fy < h as f32 {
+                let i = fy as usize * w as usize + fx as usize;
+                mask[i] = mask[i].max(v); // overlaps: keep max coverage
+            }
+        });
+    }
+    Some((mask, w, h))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn buf4x4() -> ([u8; 64], PixelBuffer<'static>) {
+        // SAFETY: the buffer is leaked for the lifetime of the test; the
+        // PixelBuffer is only used within the test's single thread.
+        let data: &'static mut [u8] = Box::leak(vec![0u8; 64].into_boxed_slice());
+        (unsafe { std::mem::transmute::<[u8; 0], [u8; 0]>([]) }, PixelBuffer::from_parts(data, 4, 4, 16))
+    }
+
+    #[test]
+    fn bitmap_size_is_sane() {
+        let (w, h) = bitmap_text_size("MITOS", 28);
+        assert!(w > 0 && h > 0 && w > h);
+        assert_eq!(bitmap_text_size("", 28), (0, 28 / 7 * 1));
+    }
+
+    #[test]
+    fn draw_bitmap_clips_to_buffer() {
+        let (_keep, mut b) = buf4x4();
+        draw_bitmap(&mut b, "MMMMMMMMMMMM", -100, -100, 28, 0xFFFFFFFF, 1.0);
+        // No panic, and the off-canvas majority was simply clipped.
+    }
+
+    #[test]
+    fn bitmap_coverage_has_pixels() {
+        let (mask, w, h) = rasterize_bitmap_coverage("MITOS", 28, 4).unwrap();
+        assert_eq!(mask.len(), (w * h) as usize);
+        assert!(mask.iter().any(|&v| v > 0.0));
+    }
+}
