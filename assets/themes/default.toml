@@ -1,0 +1,16 @@
+# MITOS boot theme — schema placeholder. The theme engine is a later-phase
+# addition; this file documents the intended knobs and is intentionally not
+# yet parsed by mitos-boot (boot.toml remains authoritative).
+
+[background]
+style = "solid"
+color = [0, 0, 0]
+
+[wordmark]
+text = "MĨȚǑŠ"
+glow = true
+glow_color = [122, 168, 255]
+
+[owl]
+scale = 0.6
+center_y = 0.44
