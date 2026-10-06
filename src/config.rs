@@ -334,6 +334,15 @@ pub fn apply_cmdline_overrides(cfg: &mut Config) {
             "log" => { if parse_level(v).is_some() { cfg.debug.log_level = v.to_string(); } }
             "recovery" => if v != "0" { cfg.forced_recovery = true; },
             "headless" => if v != "0" { cfg.splash.enabled = false; },
+            "backend" => {
+                cfg.renderer.backend = match v {
+                    "auto" => RendererBackend::Auto,
+                    "drm" => RendererBackend::Drm,
+                    "fbdev" => RendererBackend::Fbdev,
+                    "disabled" => RendererBackend::Disabled,
+                    _ => cfg.renderer.backend,
+                };
+            }
             _ => {}
         }
     }
