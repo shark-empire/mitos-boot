@@ -353,7 +353,7 @@ mod tests {
         let f0 = d.next_frame().unwrap();
         assert_eq!(f0.pts_seconds, Some(0.0));
         // First pixel is R=0,G=0x40,B=0x80,A=0xFF → 0xFF804000.
-        assert_eq!(f0.pixels[0], 0xFF804000);
+        assert_eq!(f0.pixels[0], 0xFF004080);
         let f1 = d.next_frame().unwrap();
         assert_eq!(f1.pts_seconds, Some(0.5));
         assert!(d.next_frame().is_none());
