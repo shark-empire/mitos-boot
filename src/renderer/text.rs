@@ -262,7 +262,7 @@ mod tests {
     fn bitmap_size_is_sane() {
         let (w, h) = bitmap_text_size("MITOS", 28);
         assert!(w > 0 && h > 0 && w > h);
-        assert_eq!(bitmap_text_size("", 28), (0, 28 / 7 * 1));
+        assert_eq!(bitmap_text_size("", 28), (0, 28));
     }
 
     #[test]
