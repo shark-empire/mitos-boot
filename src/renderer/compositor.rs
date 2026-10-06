@@ -25,9 +25,10 @@ pub fn blit_scaled_nearest(
     if sw == 0 || sh == 0 || dw == 0 || dh == 0 || src.len() < (sw * sh) as usize { return; }
     let (x0, y0, x1, y1) = Rect { x: dx, y: dy, w: dw, h: dh }.clip(buf.width(), buf.height());
     for y in y0..y1 {
-        let sy = (((y - dy) as u64 * sh as u64 / dw.max(1) as u64).min(sh as u64 - 1)) as u32;
+        // vertical source coordinate maps through DESTINATION HEIGHT
+        let sy = (((y - dy) as u64 * sh as u64 / dh as u64).min(sh as u64 - 1)) as u32;
         for x in x0..x1 {
-            let sx = (((x - dx) as u64 * sw as u64 / dw.max(1) as u64).min(sw as u64 - 1)) as u32;
+            let sx = (((x - dx) as u64 * sw as u64 / dw as u64).min(sw as u64 - 1)) as u32;
             buf.blend_u(x as u32, y as u32, src[sy as usize * sw as usize + sx as usize], alpha);
         }
     }
@@ -86,4 +87,16 @@ mod tests {
         fill_rect(&mut buf, &Rect { x: 0, y: 0, w: 1, h: 1 }, 0x80FFFFFF, 1.0);
         assert_eq!(buf.px(0, 0), 0xFF808080);
     }
+    
+ #[test]
+fn nearest_scaling_maps_vertical_axis_correctly() {
+    // 1×2 source (blue over red) stretched to 4×2:
+    let src: Vec<u32> = vec![0xFF0000FF, 0xFFFF0000];
+    let mut data = [0u8; 4 * 2 * 4];
+    let mut buf = PixelBuffer::from_parts(&mut data, 4, 2, 16);
+    blit_scaled_nearest(&mut buf, &src, 1, 2, 0, 0, 4, 2, 1.0);
+    assert_eq!(buf.px(0, 0), 0xFF0000FF); // top row → blue
+    assert_eq!(buf.px(0, 1), 0xFFFF0000); // bottom row → red (old code: blue)
+    assert_eq!(buf.px(3, 1), 0xFFFF0000);
+}
 }
