@@ -10,6 +10,7 @@ use super::frame::VideoFrame;
 use crate::config::VideoSection;
 use crate::error::BootError;
 use std::path::Path;
+use std::io::Read;
 
 #[derive(Debug, Clone)]
 pub struct VideoInfo {
