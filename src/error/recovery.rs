@@ -12,6 +12,7 @@ use std::os::unix::io::{AsRawFd, RawFd};
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
+use std::os::unix::fs::OpenOptionsExt;
 
 pub fn handle_fatal(err: &BootError, cfg: &Config) -> ExitCode {
     crate::bootlog::fail(&err.to_string());
