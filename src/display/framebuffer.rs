@@ -72,19 +72,20 @@ fn detect_format(var: &FbVarScreenInfo) -> Result<FbFormat, BootError> {
 }
 
 fn write_pixel(dst: &mut [u8], off: usize, v: u32, f: FbFormat) {
-    // v is 0xAARRGGBB
     let (r, g, b) = (((v >> 16) & 0xFF) as u8, ((v >> 8) & 0xFF) as u8, (v & 0xFF) as u8);
     let n = f.bpp_bytes();
-    if off + n > dst.len() { return; } // defensive: never trust line_length math
+    if off + n > dst.len() { return; }
     match f {
-        FbFormat::Xbgr8888 => dst[off..off + 4].copy_from_slice(&[b, g, r, 0]),
+        // XRGB8888: r@16 g@8 b@0 → LE bytes B,G,R,X
+        FbFormat::Xrgb8888 => dst[off..off + 4].copy_from_slice(&[b, g, r, 0]),
+        // XBGR8888: r@0 g@8 b@16 → LE bytes R,G,B,X
+        FbFormat::Xbgr8888 => dst[off..off + 4].copy_from_slice(&[r, g, b, 0]),
         FbFormat::Rgb888   => dst[off..off + 3].copy_from_slice(&[b, g, r]),
         FbFormat::Bgr888   => dst[off..off + 3].copy_from_slice(&[r, g, b]),
         FbFormat::Rgb565 => {
             let p = (((r as u16) >> 3) << 11) | (((g as u16) >> 2) << 5) | ((b as u16) >> 3);
             dst[off..off + 2].copy_from_slice(&p.to_le_bytes());
         }
-        FbFormat::Xrgb8888 => unreachable!("handled by the fast path"),
     }
 }
 
@@ -193,7 +194,7 @@ impl Display for FbdevDisplay {
         let src = &self.shadow;
         let src_stride = w * 4;
 
-        if self.format == FbFormat::Xrgb8888 {
+        if self.format == FbFormat::Xrgb8888 && self.fb_stride >= src_stride {
             // Fast path: identical memory layout, row-by-row copy.
             for y in 0..h {
                 let s = &src[y * src_stride .. y * src_stride + src_stride];
