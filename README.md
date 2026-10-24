@@ -1,6 +1,6 @@
 # mitos-boot
 
-![./assets/splash/owl/owl.mp4]
+![Owl boot animation](./assets/splash/owl/owl.gif)
 
 mitos-boot
 
