@@ -12,5 +12,5 @@ glow = true
 glow_color = [122, 168, 255]
 
 [owl]
-scale = 0.6
+scale = 1.0
 center_y = 0.44
