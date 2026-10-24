@@ -9,11 +9,29 @@
 //!   12      4     height     (u32 LE, 1..=8192)
 //!   16      4     fps        (u32 LE, 1..=240)
 //!   20      4     frame_count(u32 LE, 1..=100000)
-//!   24      4     format     (u32 LE; 0 = RGBA8, bytes R,G,B,A)
-//!   28      ...   frames, width*height*4 bytes each, in display order
+//!   24      4     format     (u32 LE; see below)
+//!   28      ...   payload, by format
+//!
+//!   format 0  RGBA8   frames of width*height*4 bytes (R,G,B,A) in display
+//!                     order. Trivial, but a few seconds of 720p is hundreds
+//!                     of MiB — meant for tests and tiny assets.
+//!
+//!   format 1  PAL8Z   the compact boot format (built by
+//!                     scripts/make-owl-asset.py):
+//!                       u16 LE   palette_len (1..=256)
+//!                       palette_len * 3 bytes of R,G,B
+//!                       then frame_count chunks, each
+//!                         u32 LE zlen (1..) + zlen bytes of zlib data that
+//!                         inflate to exactly width*height bytes: the
+//!                         per-pixel wrapping delta of palette indices
+//!                         against the previous frame (frame 0 against
+//!                         all-zero indices). Pixels are opaque.
+//!                     Decoder memory: two width*height byte planes plus one
+//!                     frame of u32 pixels.
 //!
 //! Every field is validated before a single frame is decoded; total asset
-//! size is capped by config (video.max_asset_bytes).
+//! size is capped by config (video.max_asset_bytes). Both formats stream one
+//! frame at a time and can be rewound for loop playback.
 
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
@@ -26,6 +44,7 @@ pub const MAX_FPS: u32 = 240;
 pub const MAX_FRAMES: u32 = 100_000;
 pub const MAX_FRAME_BYTES: usize = 64 << 20; // per-frame sanity cap
 pub const FORMAT_RGBA_LE: u32 = 0;
+pub const FORMAT_PAL8_ZDELTA: u32 = 1;
 
 pub fn read_exact_n(f: &mut File, n: usize) -> std::io::Result<Vec<u8>> {
     let mut v = vec![0u8; n];

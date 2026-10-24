@@ -31,7 +31,7 @@ struct BootLogger;
 
 impl Log for BootLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() as usize <= FILTER.load(Ordering::Relaxed)
+        (metadata.level() as usize) <= FILTER.load(Ordering::Relaxed)
     }
 
     fn log(&self, record: &Record) {
@@ -50,11 +50,13 @@ impl Log for BootLogger {
         }
 
         // /dev/kmsg — best effort, with the kernel priority prefix.
-        if let Some(f) = KMSG.get().and_then(|o| o.as_ref()) {
+        if let Some(mut f) = KMSG.get().and_then(|o| o.as_ref()) {
             let prio = match record.level() {
                 Level::Error => 3, Level::Warn => 4, Level::Info => 6, _ => 7,
             };
-            let _ = writeln!(f, "<{prio}>mitos-boot: {text}");
+            // One write() per record: /dev/kmsg turns every write into one message.
+            let msg = format!("<{prio}>mitos-boot: {text}\n");
+            let _ = f.write_all(msg.as_bytes());
         }
 
         // On-screen ring (bounded).
@@ -66,7 +68,7 @@ impl Log for BootLogger {
     }
 
     fn flush(&self) {
-        if let Some(f) = KMSG.get().and_then(|o| o.as_ref()) {
+        if let Some(mut f) = KMSG.get().and_then(|o| o.as_ref()) {
             let _ = f.flush();
         }
     }

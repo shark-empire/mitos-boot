@@ -18,12 +18,14 @@ serde       = { version = "1", features = ["derive"] }
 toml        = "0.8"
 rusttype    = "0.9"     # wordmark / text (pure Rust)
 png         = "0.17"    # static fallback image (pure Rust)
-# WebM/VP9 decoding. Optional to keep minimal early-userspace builds small.
+flate2      = "1"       # zlib chunks of MITOSV format 1 (pure-Rust miniz_oxide backend)
+# WebM/VP9 decoding. Optional: the shipped owl asset is MITOSV format 1 and
+# needs no FFmpeg, so the default build stays dependency-light.
 # Match the crate major version to your system FFmpeg (4.x,5.x,6.x,7.x).
 ffmpeg-next = { version = "7.1", optional = true }
 
 [features]
-default = ["video-ffmpeg"]
+default = []
 video-ffmpeg = ["ffmpeg-next"]
 
 [profile.release]

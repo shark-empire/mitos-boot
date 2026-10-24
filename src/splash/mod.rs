@@ -30,10 +30,11 @@ impl SplashScene {
         SplashScene { owl, wordmark, background: Background::from_config(cfg) }
     }
 
-    /// Advance the scene; true when the owl presentation is over.
-    pub fn update(&mut self, now: Instant) -> bool {
+    /// Advance the scene; true when the owl presentation is over. `release`
+    /// (system ready or timed out) lets a looping owl stop replaying.
+    pub fn update(&mut self, now: Instant, release: bool) -> bool {
         match self.owl.as_mut() {
-            Some(o) => o.update(now),
+            Some(o) => o.update(now, release),
             None => true,
         }
     }

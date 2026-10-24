@@ -7,7 +7,6 @@
 //!      the fallback path keeps working even if every other subsystem died.
 
 use super::surface::PixelBuffer;
-use super::texture::Texture;
 
 // ---------------------------------------------------------------------------
 // Built-in 5x7 font (classic public-domain ASCII set; one byte per column,
@@ -220,9 +219,9 @@ pub fn rasterize_ttf_coverage(
     let (mut min_x, mut min_y) = (f32::MAX, f32::MAX);
     let (mut max_x, mut max_y) = (f32::MIN, f32::MIN);
     for g in &glyphs {
-        if let Some(bb) = g.bounding_box() {
-            min_x = min_x.min(bb.min.x); min_y = min_y.min(bb.min.y);
-            max_x = max_x.max(bb.max.x); max_y = max_y.max(bb.max.y);
+        if let Some(bb) = g.pixel_bounding_box() {
+            min_x = min_x.min(bb.min.x as f32); min_y = min_y.min(bb.min.y as f32);
+            max_x = max_x.max(bb.max.x as f32); max_y = max_y.max(bb.max.y as f32);
         }
     }
     if min_x == f32::MAX || max_x <= min_x || max_y <= min_y { return None; }
@@ -233,9 +232,9 @@ pub fn rasterize_ttf_coverage(
 
     let mut mask = vec![0.0f32; (w * h) as usize];
     for g in glyphs {
-        let Some(bb) = g.bounding_box() else { continue };
-        let ox = pad as f32 + (bb.min.x - min_x);
-        let oy = pad as f32 + (bb.min.y - min_y);
+        let Some(bb) = g.pixel_bounding_box() else { continue };
+        let ox = pad as f32 + (bb.min.x as f32 - min_x);
+        let oy = pad as f32 + (bb.min.y as f32 - min_y);
         g.draw(|x, y, v| {
             let (fx, fy) = (ox + x as f32, oy + y as f32);
             if fx >= 0.0 && fy >= 0.0 && fx < w as f32 && fy < h as f32 {
@@ -251,11 +250,10 @@ pub fn rasterize_ttf_coverage(
 mod tests {
     use super::*;
 
-    fn buf4x4() -> ([u8; 64], PixelBuffer<'static>) {
-        // SAFETY: the buffer is leaked for the lifetime of the test; the
-        // PixelBuffer is only used within the test's single thread.
+    fn buf4x4() -> PixelBuffer<'static> {
+        // The backing store is leaked: tiny, and only for the test's lifetime.
         let data: &'static mut [u8] = Box::leak(vec![0u8; 64].into_boxed_slice());
-        (unsafe { std::mem::transmute::<[u8; 0], [u8; 0]>([]) }, PixelBuffer::from_parts(data, 4, 4, 16))
+        PixelBuffer::from_parts(data, 4, 4, 16)
     }
 
     #[test]
@@ -267,7 +265,7 @@ mod tests {
 
     #[test]
     fn draw_bitmap_clips_to_buffer() {
-        let (_keep, mut b) = buf4x4();
+        let mut b = buf4x4();
         draw_bitmap(&mut b, "MMMMMMMMMMMM", -100, -100, 28, 0xFFFFFFFF, 1.0);
         // No panic, and the off-canvas majority was simply clipped.
     }

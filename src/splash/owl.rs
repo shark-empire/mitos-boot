@@ -18,7 +18,7 @@ pub enum Owl {
     Static(StaticOwl),
 }
 
-pub struct VideoOwl { player: VideoPlayer, state: OwlState, scale: f32, center_y: f32 }
+pub struct VideoOwl { player: VideoPlayer, state: OwlState, scale: f32, center_y: f32, looping: bool }
 pub struct StaticOwl { texture: Texture, state: OwlState, until: Instant, scale: f32, center_y: f32 }
 
 impl Owl {
@@ -33,6 +33,7 @@ impl Owl {
                 Ok(player) => {
                     return Some(Owl::Video(VideoOwl {
                         player, state: OwlState::Loading, scale, center_y,
+                        looping: cfg.splash.owl_loop,
                     }));
                 }
                 Err(e) => log::warn!("owl video unavailable: {e}"),
@@ -58,18 +59,35 @@ impl Owl {
     }
 
     /// Advance; returns true when the owl presentation is over.
-    pub fn update(&mut self, now: Instant) -> bool {
+    ///
+    /// `release` is true once the system can proceed (ready or timed out). A
+    /// looping owl (Apple-logo style) replays until then and hands over the
+    /// moment `release` is set; a non-looping owl ignores it and plays through.
+    pub fn update(&mut self, now: Instant, release: bool) -> bool {
         match self {
             Owl::Video(v) => {
                 if v.state == OwlState::Loading { v.state = OwlState::Playing; }
                 match v.player.update(now) {
-                    PlayerUpdate::Finished => { v.state = OwlState::Finished; true }
+                    PlayerUpdate::Finished => {
+                        if v.looping && !release && v.player.restart() {
+                            return false;
+                        }
+                        v.state = OwlState::Finished;
+                        true
+                    }
                     PlayerUpdate::Failed => {
                         v.state = OwlState::Error;
                         log::warn!("owl video failed mid-playback; continuing boot");
                         true
                     }
-                    _ => false,
+                    _ => {
+                        if v.looping && release {
+                            v.state = OwlState::Finished;
+                            true
+                        } else {
+                            false
+                        }
+                    }
                 }
             }
             Owl::Static(s) => {

@@ -73,6 +73,27 @@ impl VideoPlayer {
         }
         self.clock.start();
     }
+    /// Rewind to the first frame and keep playing (loop playback). Returns
+    /// false when the backend cannot rewind or the asset is empty; the player
+    /// is then left finished and the caller treats the video as over.
+    pub fn restart(&mut self) -> bool {
+        if !self.decoder.rewind() {
+            self.state = PlayerState::Finished;
+            return false;
+        }
+        self.current = self.decoder.next_frame();
+        self.next = self.decoder.next_frame();
+        self.frames_shown = 0;
+        self.clock = Clock::new();
+        if self.current.is_none() {
+            self.state = PlayerState::Finished;
+            return false;
+        }
+        self.state = PlayerState::Playing;
+        self.clock.start();
+        true
+    }
+
     #[allow(dead_code)] // part of the §10 API; splash uses play/update only
     pub fn pause(&mut self) {
         if self.state == PlayerState::Playing { self.state = PlayerState::Paused; }

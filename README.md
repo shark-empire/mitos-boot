@@ -9,12 +9,13 @@ MITOS early boot & visual startup system. It shows MITOS starting; it doesnot ma
 power → firmware → bootloader → Linux kernel → early userspace →mitos-boot → [ display → owl video → MĨȚǑŠ ] → readiness → mitos-init
 Sequence
 
-Black → owl video (owl.webm, the entire cinematic animation is the asset) →owl fades → MĨȚǑŠ fades in → hold until the system is actually ready →MĨȚǑŠ fades → handoff. The animation never gates readiness and readinessnever crashes the animation: a broken video falls back to a static image,then to a wordmark-only splash, and boot always continues.
+Black → owl video (owl.mitosv: the owl's eyes open, blink, open — see "Owl asset" below) →owl fades → MĨȚǑŠ fades in → hold until the system is actually ready →MĨȚǑŠ fades → handoff. The owl replays (owl_loop = true) for as long as the system needs, like the Apple logo on a Mac, and hands over the moment the system is ready (after the minimum visual duration). The animation never gates readiness and readinessnever crashes the animation: a broken video falls back to a static image,then to a wordmark-only splash, and boot always continues.
 
 Build
 
-scripts/build.sh                       # full build (FFmpeg/WebM support)MITOS_BOOT_FEATURES="" scripts/build.sh                                       # minimal build (MITOSV assets only)
-FFmpeg note: ffmpeg-next must match your system libavcodec major version(6.x crate ↔ FFmpeg 6, etc.). The minimal build has no multimediadependencies at all — generate test animations withcargo run --release --example make_mitosv.
+scripts/build.sh                       # default build: dependency-light, plays the owl (MITOSV)
+MITOS_BOOT_FEATURES=video-ffmpeg scripts/build.sh   # also decode WebM/MP4/... via system FFmpeg
+FFmpeg note: only needed for other video containers. ffmpeg-next must match your system libavcodec major version (6.x crate ↔ FFmpeg 6, etc.). The default build has no multimedia dependencies at all — the owl ships as MITOSV format 1 (about 400 KB, decoded with two byte planes of RAM). Generate test animations with cargo run --release --example make_mitosv.
 
 Run
 
@@ -26,9 +27,21 @@ Exit codes: 0 success · 78 configuration error · 86 watchdog stall ·1 other f
 Assets
 
 Purpose	Primary	Fallbacks
-Owl	owl.webm (any FFmpeg container, or MITOSV)	owl.png → wordmark-only
+Owl	owl.mitosv (MITOSV; any FFmpeg container with --features video-ffmpeg)	owl.png → wordmark-only
 Wordmark	rendered from font (full Unicode, MĨȚǑŠ)	built-in ASCII bitmap glyphs
 mitos.svg remains a design reference; the wordmark is renderedtypographically so no SVG parser (and its dependency tree) ships in earlyuserspace.
+
+Owl asset (assets/splash/owl/)
+
+owl.mp4 is the source clip. owl.mitosv is what boots: scripts/make-owl-asset.py crops it to the face band (the clip is mostly black margin), maps it onto one 256-colour palette, keeps only real motion (a pixel changes only when it differs from what is on screen by more than --hold, so H.264 shimmer is dropped), and stores each frame as zlib-compressed index deltas. Result: 704x432, 168 frames @ 24 fps, about 400 KB, about 43.7 dB PSNR against the source, and the decoder needs roughly 600 KiB of byte planes plus one frame of pixels instead of FFmpeg.
+
+Rebuild it (needs ffmpeg + python3 + numpy; dev/CI only, nothing here ships in the initramfs):
+
+python3 scripts/make-owl-asset.py assets/splash/owl/owl.mp4 assets/splash/owl/owl.mitosv
+
+The script decodes its own output the way src/video/decoder.rs does and refuses to write a file that does not round-trip bit-exactly. The asset has an opaque black background, so keep background.style = "solid" with black (the default) or the crop edges can show on a gradient.
+
+The format itself (header, palette, chunks) is documented in src/video/format.rs.
 
 Security model (§31 of the design document)
 

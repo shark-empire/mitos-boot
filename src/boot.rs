@@ -168,9 +168,10 @@ fn run_visual(
         let now = Instant::now();
         let elapsed = (now - start).as_secs_f64();
 
-        let video_done = scene.update(now);
         let ready = readiness.is_ready();
         let timed_out = readiness.is_timed_out();
+        // A looping owl keeps replaying until the system can proceed.
+        let video_done = scene.update(now, ready || timed_out);
         if ready && !sent_system_ready {
             sent_system_ready = true;
             ipc_send(ipc, &Message::SystemReady);

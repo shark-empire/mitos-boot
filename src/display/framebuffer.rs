@@ -10,7 +10,8 @@ use crate::config::Config;
 use crate::error::BootError;
 use crate::renderer::surface::PixelBuffer;
 use std::fs::File;
-use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::path::PathBuf;
 
 const FBIOGET_VSCREENINFO: libc::c_ulong = 0x4600;

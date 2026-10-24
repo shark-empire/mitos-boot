@@ -26,7 +26,7 @@ impl Background {
                 for y in 0..buf.height() {
                     let t = y as f32 / h as f32;
                     let c = lerp3(&self.top, &self.bottom, t);
-                    let v = 0xFF00_0000 | (c[0] as u32) << 16 | (c[1] as u32) << 8 | c[2] as u32;
+                    let v = 0xFF00_0000u32 | (c[0] as u32) << 16 | (c[1] as u32) << 8 | c[2] as u32;
                     let px = v.to_le_bytes(); // B, G, R, A
                     let row = buf.row_mut(y);
                     for p in row.chunks_exact_mut(4) { p.copy_from_slice(&px); }

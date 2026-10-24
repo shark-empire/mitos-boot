@@ -8,7 +8,7 @@ use crate::error::BootError;
 use crate::ipc::{IpcServer, Message};
 use crate::state::{BootStage, SharedState};
 use std::ffi::CString;
-use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::path::{Path, PathBuf};
 use std::ptr;
 
@@ -77,7 +77,7 @@ pub(crate) fn exec_replace(
     args: &[&str],
     env_extra: &[(&str, &str)],
 ) -> Result<(), BootError> {
-    let cstr = |b: &[u8]| CString::new(b).map_err(|_| BootError::Handoff("argument contains NUL".into()))?;
+    let cstr = |b: &[u8]| CString::new(b).map_err(|_| BootError::Handoff("argument contains NUL".into()));
     let prog = cstr(program.as_os_str().as_bytes())?;
 
     let mut argv: Vec<CString> = vec![prog.clone()];

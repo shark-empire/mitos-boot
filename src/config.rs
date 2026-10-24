@@ -57,6 +57,9 @@ pub struct SplashSection {
     pub enabled: bool,
     pub owl_video: bool,
     pub owl_video_path: PathBuf,
+    /// Replay the owl until the system is ready (like the Apple logo that
+    /// stays up for as long as the Mac takes to boot) instead of playing once.
+    pub owl_loop: bool,
     pub owl_static_fallback: Option<PathBuf>,
     pub owl_scale: f32,          // fraction of min(screen w,h)
     pub owl_center_y: f32,       // 0.0 = top, 1.0 = bottom
@@ -75,7 +78,8 @@ impl Default for SplashSection {
         Self {
             enabled: true,
             owl_video: true,
-            owl_video_path: PathBuf::from("/usr/share/mitos/boot/owl.webm"),
+            owl_video_path: PathBuf::from("/usr/share/mitos/boot/owl.mitosv"),
+            owl_loop: true,
             owl_static_fallback: Some(PathBuf::from("/usr/share/mitos/boot/owl.png")),
             owl_scale: 0.6,
             owl_center_y: 0.44,
@@ -270,7 +274,7 @@ impl Config {
         clampu(&mut self.display.max_height, 640, 16_384);
 
         clampu(&mut self.system.readiness_timeout_ms, 0, 600_000);
-        clampu(&mut self.reliability.watchdog_ms, 0, 600_000);
+        self.reliability.watchdog_ms = self.reliability.watchdog_ms.min(600_000);
         clampu(&mut self.recovery.timeout_s, 0, 600);
 
         for p in [&self.system.init_path, &self.recovery.recovery_path, &self.recovery.console] {

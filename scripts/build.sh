@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Build mitos-boot.
-#   MITOS_BOOT_FEATURES=""           dependency-free build (MITOSV assets only)
-#   MITOS_BOOT_FEATURES=video-ffmpeg full build (default)
+#   (default)                        dependency-light build (MITOSV assets, incl. the owl)
+#   MITOS_BOOT_FEATURES=video-ffmpeg also decode WebM/MP4/... via system FFmpeg
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-FEATURES="${MITOS_BOOT_FEATURES-video-ffmpeg}"
+FEATURES="${MITOS_BOOT_FEATURES-}"
 
 echo "==> cargo build --release (features: ${FEATURES:-none})"
 if [ -n "$FEATURES" ]; then
