@@ -13,7 +13,7 @@ owl_video_path = "/usr/share/mitos/boot/owl.mitosv"
 owl_loop = true            # replay the owl until the system is ready, like the
                            # Apple logo that stays up for as long as boot takes
 owl_static_fallback = "/usr/share/mitos/boot/owl.png"
-owl_scale = 0.6            # fraction of the shorter screen edge
+owl_scale = 1.0            # fraction of the shorter screen edge
 owl_center_y = 0.44        # 0.0 = top, 1.0 = bottom
 wordmark = true
 wordmark_text = "MĨȚǑŠ"
